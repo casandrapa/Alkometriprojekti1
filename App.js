@@ -1,20 +1,108 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React, {useState} from 'react';
+import {useFonts} from 'expo-font';
+import { Text, SafeAreaView, TextInput, ScrollView} from 'react-native';
+import styles from './Style';
+import {Picker} from '@react-native-picker/picker';
+import Radiobutton from './components/Radiobutton'; 
+import CalculateButton from './components/CalculateButton';
 
 export default function App() {
+  /** Load external fonts */
+  const[fontsLoaded] = useFonts({
+    Rubik: require('./assets/fonts/Rubik-Regular.ttf'), 
+    RHeRubikBold: require('./assets/fonts/Rubik-Bold.ttf'),
+  });
+ 
+  /** Hooks */
+  const [gender, setGender] = useState(1);
+  const [weight, setWeight] = useState(0);
+  const [bottles, setBottles] = useState(1);
+  const [hours, setHours] = useState(1);
+  const [bloodAlcLevel, setBAL] = useState(0);
+  const [invalidWeight, setInvalidWeight] = useState(false);
+  
+  /** Constants */
+  /** Genders */
+  const genderOptions = [
+    {
+      label: 'Mies',
+      value: 1
+    },
+    {
+      label: 'Nainen',
+      value: 2
+    }
+  ]; 
+  /** Number of bottles drunk and hours of drinking */
+  const bottlesArray = [];
+  const hoursArray = [];
+  for (var i = 1; i <= 24; i++) {
+    var p1, p2;
+    i > 1 ? p1 = "ta" : p1 = "";
+    i > 1 ? p2 = "a" : p2 = "";
+    bottlesArray.push({
+      label: i.toString() + " juotavia" + p1,
+      value: i
+    })
+    hoursArray.push({
+      label: i.toString() + " tunti" + p2,
+      value: i
+    })
+  }
+
+  /** Check that weight value is correct and set weight property */
+  const checkWeight = (weight) => {
+    var error = isNaN(+weight);
+    error = !error && (weight < 1);
+    setInvalidWeight(error);
+    if (!error) setWeight(weight); 
+  }
+
+  /** Calculate blood alcohol level */
+  const calculateBAL = () => {
+    if (weight == 0 || invalidWeight) {
+      setBAL(0);
+      return;
+    }
+
+    var grams = bottles * 0.33 * 8 * 4.5;
+    var gramsLeft = grams - (hours * (weight / 10));
+    
+    var factor = gender == 1 ? 0.7 : 0.6;
+    var bloodAlcLevel = gramsLeft / (weight * factor);
+    if (bloodAlcLevel < 0 ) bloodAlcLevel = 0;
+    setBAL(bloodAlcLevel);
+  };
+  
+  /** Return null if font loading failed */
+  if(!fontsLoaded) { return null; }
+
+  /** Return main view */
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <SafeAreaView style={styles.container}>
+      <ScrollView>
+        <Text style={styles.heading}>ALKOMETRI</Text>
+        <Text style={styles.label}>Kg</Text>
+        <TextInput style={styles.input} onChangeText={text => checkWeight(text)} placeholder='Paino' keyboardType='numeric' error={invalidWeight}></TextInput>
+        {invalidWeight && <Text style={styles.errorText}>Invalid weight value!</Text> }
+        <Text style={styles.label}>Juomat</Text>
+        <Picker style={styles.input} mode="dropdown" selectedValue={bottles} onValueChange={(itemValue, itemIndex) => setBottles(itemValue)}>
+          {bottlesArray.map((t) => {
+            return (<Picker.Item label={t.label} value={t.value} key={t.value}/>)
+          })}
+        </Picker>
+        <Text style={styles.label}>Ajassa</Text>
+        <Picker style={styles.input} mode="dropdown" selectedValue={hours} onValueChange={(itemValue, itemIndex) => setHours(itemValue)}>
+          {hoursArray.map((t) => {
+            return (<Picker.Item label={t.label} value={t.value} key={t.value}/>)
+          })}
+        </Picker>
+        <Text style={styles.label}>Sukupuoli</Text>
+        <Radiobutton options={genderOptions} defaultValue={gender} onPress={(value) => {setGender(value)}} /> 
+        <Text style={[bloodAlcLevel >= 1.20 ? styles.bac_danger : bloodAlcLevel >= 0.5 ? styles.bac_warning : styles.bac_ok]}>{bloodAlcLevel.toFixed(2)}</Text>
+        <CalculateButton textStyle={styles.buttonText} text={'Laske'} onPress={calculateBAL}></CalculateButton> 
+      </ScrollView>
+      <Text style={styles.label}> {[bloodAlcLevel >= 1.20 ? 'Humalassa' : bloodAlcLevel >= 0.5 ? 'Rajalla' : 'OK']} </Text>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
